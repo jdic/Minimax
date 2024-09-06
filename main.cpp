@@ -3,25 +3,73 @@
 #include <chrono>
 #include <thread>
 #include <limits>
+#include <cmath>
 
-const char PLAYER = 'X';
-const char OPPONENT = 'O';
+const char PLAYER1 = 'X';
+const char PLAYER2 = 'O';
 
-bool is_winner(const std::vector<char> &board, char player)
+std::vector<std::vector<int>> generate_win_combinations(int n)
 {
-  const int WIN_COMBINATIONS[8][3] =
-  {
-    {0, 1, 2}, {3, 4, 5}, {6, 7, 8},
-    {0, 3, 6}, {1, 4, 7}, {2, 5, 8},
-    {0, 4, 8}, {2, 4, 6}
-  };
+  std::vector<std::vector<int>> win_combinations;
 
-  for (int i = 0; i < 8; i++)
+  for (int row = 0; row < n; ++row)
   {
-    bool result =
-      board[WIN_COMBINATIONS[i][0]] == player &&
-      board[WIN_COMBINATIONS[i][1]] == player &&
-      board[WIN_COMBINATIONS[i][2]] == player;
+    std::vector<int> combination;
+
+    for (int col = 0; col < n; ++col)
+    {
+      combination.push_back((row * n) + col);
+    }
+
+    win_combinations.push_back(combination);
+  }
+
+  for (int col = 0; col < n; ++col)
+  {
+    std::vector<int> combination;
+
+    for (int row = 0; row < n; ++row)
+    {
+      combination.push_back((row * n) + col);
+    }
+
+    win_combinations.push_back(combination);
+  }
+
+  std::vector<int> diagonal1;
+
+  for (int i = 0; i < n; ++i)
+  {
+    diagonal1.push_back((i * n) + i);
+  }
+
+  std::vector<int> diagonal2;
+
+  for (int i = 0; i < n; ++i)
+  {
+    diagonal2.push_back((i * n) + (n - i - 1));
+  }
+
+  win_combinations.push_back(diagonal1);
+  win_combinations.push_back(diagonal2);
+
+  return win_combinations;
+}
+
+bool is_winner(const std::vector<char> &board, char player, const std::vector<std::vector<int>> &win_combinations)
+{
+  for (const auto &combination : win_combinations)
+  {
+    bool result = true;
+
+    for (int idx : combination)
+    {
+      if (board[idx] != player)
+      {
+        result = false;
+        break;
+      }
+    }
 
     if (result)
     {
@@ -36,7 +84,7 @@ bool is_board_full(const std::vector<char> &board)
 {
   for (char cell : board)
   {
-    if (cell != PLAYER && cell != OPPONENT)
+    if (cell != PLAYER1 && cell != PLAYER2)
     {
       return false;
     }
@@ -45,14 +93,14 @@ bool is_board_full(const std::vector<char> &board)
   return true;
 }
 
-int minimax(std::vector<char> &board, bool isMaximizing)
+int minimax(std::vector<char> &board, bool isMaximizing, const std::vector<std::vector<int>> &win_combinations)
 {
-  if (is_winner(board, PLAYER))
+  if (is_winner(board, PLAYER1, win_combinations))
   {
     return 10;
   }
 
-  if (is_winner(board, OPPONENT))
+  if (is_winner(board, PLAYER2, win_combinations))
   {
     return -10;
   }
@@ -66,12 +114,12 @@ int minimax(std::vector<char> &board, bool isMaximizing)
   {
     int best_score = std::numeric_limits<int>::min();
 
-    for (int i = 0; i < 9; ++i)
+    for (int i = 0; i < board.size(); ++i)
     {
-      if (board[i] != PLAYER && board[i] != OPPONENT)
+      if (board[i] != PLAYER1 && board[i] != PLAYER2)
       {
-        board[i] = PLAYER;
-        int score = minimax(board, false);
+        board[i] = PLAYER1;
+        int score = minimax(board, false, win_combinations);
         board[i] = ' ';
         best_score = std::max(score, best_score);
       }
@@ -84,12 +132,12 @@ int minimax(std::vector<char> &board, bool isMaximizing)
   {
     int best_score = std::numeric_limits<int>::max();
 
-    for (int i = 0; i < 9; ++i)
+    for (int i = 0; i < board.size(); ++i)
     {
-      if (board[i] != PLAYER && board[i] != OPPONENT)
+      if (board[i] != PLAYER1 && board[i] != PLAYER2)
       {
-        board[i] = OPPONENT;
-        int score = minimax(board, true);
+        board[i] = PLAYER2;
+        int score = minimax(board, true, win_combinations);
         board[i] = ' ';
         best_score = std::min(score, best_score);
       }
@@ -99,22 +147,22 @@ int minimax(std::vector<char> &board, bool isMaximizing)
   }
 }
 
-int get_best_move(std::vector<char> &board, char current)
+int get_best_move(std::vector<char> &board, char current, const std::vector<std::vector<int>> &win_combinations)
 {
   int best_move = -1;
-  int best_score = (current == PLAYER)
+  int best_score = (current == PLAYER1)
     ? std::numeric_limits<int>::min()
     : std::numeric_limits<int>::max();
 
-  for (int i = 0; i < 9; ++i)
+  for (int i = 0; i < board.size(); ++i)
   {
-    if (board[i] != PLAYER && board[i] != OPPONENT)
+    if (board[i] != PLAYER1 && board[i] != PLAYER2)
     {
       board[i] = current;
-      int score = minimax(board, !(current == PLAYER));
+      int score = minimax(board, !(current == PLAYER1), win_combinations);
       board[i] = ' ';
 
-      if (current == PLAYER)
+      if (current == PLAYER1)
       {
         if (score > best_score)
         {
@@ -137,15 +185,15 @@ int get_best_move(std::vector<char> &board, char current)
   return best_move;
 }
 
-void print_board(const std::vector<char> &board)
+void print_board(const std::vector<char> &board, int n)
 {
   std::cout << "\033[H";
 
-  for (int i = 0; i < 9; i++)
+  for (int i = 0; i < board.size(); i++)
   {
     std::cout << board[i] << " ";
 
-    if ((i + 1) % 3 == 0)
+    if ((i + 1) % n == 0)
     {
       std::cout << std::endl;
     }
@@ -154,22 +202,25 @@ void print_board(const std::vector<char> &board)
 
 int main()
 {
-  std::vector<char> board(9, ' ');
-  char current = PLAYER;
+  int n = 3;
+  std::vector<char> board(pow(n, 2), ' ');
+  char current = PLAYER1;
+
+  auto win_combinations = generate_win_combinations(n);
 
   while (true)
   {
-    print_board(board);
+    print_board(board, n);
 
-    if (is_winner(board, PLAYER))
+    if (is_winner(board, PLAYER1, win_combinations))
     {
-      std::cout << std::endl << "Winner: Player" << std::endl;
+      std::cout << "Winner: Player" << std::endl;
       break;
     }
 
-    if (is_winner(board, OPPONENT))
+    if (is_winner(board, PLAYER2, win_combinations))
     {
-      std::cout << std::endl << "Winner: Opponent" << std::endl;
+      std::cout << "Winner: Opponent" << std::endl;
       break;
     }
 
@@ -179,14 +230,14 @@ int main()
       break;
     }
 
-    int move = get_best_move(board, current);
+    int move = get_best_move(board, current, win_combinations);
     board[move] = current;
 
-    current = current == PLAYER
-      ? OPPONENT
-      : PLAYER;
+    current = current == PLAYER1
+      ? PLAYER2
+      : PLAYER1;
 
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 
   return 0;
